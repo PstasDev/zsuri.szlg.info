@@ -1,0 +1,104 @@
+{% extends 'base.html' %}
+{% load event_extras %}
+{% block content %}
+<div class="max-w-4xl mx-auto">
+    <div class="flex justify-between items-center mb-8">
+        <h1 class="text-3xl font-bold text-indigo-400">Részletes Eredmények</h1>
+        <a href="{% url 'event_detail' event.id %}" class="text-gray-400 hover:text-white transition duration-300">
+            &larr; Vissza
+        </a>
+    </div>
+
+    <div class="bg-gray-800 p-6 rounded-lg shadow-xl border border-gray-700 mb-6">
+        <h2 class="text-2xl font-bold text-white mb-2">{{ event.name }}</h2>
+        <p class="text-gray-400 text-sm mb-4">{{ event.date|date:"Y. F d. H:i" }}</p>
+        
+        <!-- User Filter -->
+        <div class="mt-4">
+            <label for="user-filter" class="block text-sm font-medium text-gray-400 mb-2">Szűrés felhasználó szerint:</label>
+            <select id="user-filter" class="w-full md:w-1/2 bg-gray-700 border border-gray-600 text-white py-2 px-4 rounded focus:outline-none focus:border-blue-500">
+                <option value="">-- Minden felhasználó --</option>
+                {% for user in all_users %}
+                    <option value="{{ user.id }}">{{ user.get_full_name|default:user.username }} ({{ user.email }})</option>
+                {% endfor %}
+            </select>
+        </div>
+    </div>
+
+    {% for item in detailed_results %}
+    <div class="bg-gray-800 p-6 rounded-lg shadow-xl border border-gray-700 mb-8 category-section" data-category="{{ item.category.id }}">
+        <h3 class="text-xl font-bold text-blue-400 mb-4 border-b border-gray-700 pb-2">{{ item.category.name }}</h3>
+        
+        {% if item.votes_by_user %}
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead class="bg-gray-700 text-gray-300">
+                    <tr>
+                        <th class="py-3 px-4">Osztály</th>
+                        <th class="py-3 px-4">Ország</th>
+                        {% for user in item.users %}
+                        <th class="py-3 px-4 text-center user-column" data-user-id="{{ user.id }}">
+                            <div class="flex flex-col items-center">
+                                <span class="font-semibold">{{ user.get_full_name|default:user.username }}</span>
+                                <span class="text-xs text-gray-400">{{ user.email }}</span>
+                            </div>
+                        </th>
+                        {% endfor %}
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-700">
+                    {% for participation_data in item.participation_votes %}
+                    <tr class="hover:bg-gray-750 transition duration-150">
+                        <td class="py-3 px-4 text-white font-medium">{{ participation_data.participation.osztaly }}</td>
+                        <td class="py-3 px-4 text-gray-300">
+                            {% if participation_data.participation.country %}
+                                <span class="mr-1.5 text-lg">{{ participation_data.participation.country.flag }}</span>
+                                {{ participation_data.participation.country.name }}
+                            {% else %}
+                                <span class="text-gray-500">-</span>
+                            {% endif %}
+                        </td>
+                        {% for user in item.users %}
+                        <td class="py-3 px-4 text-center user-column" data-user-id="{{ user.id }}">
+                            {% with rank=participation_data.user_ranks|get_item:user.id %}
+                            {% if rank %}
+                                <span class="inline-flex items-center justify-center w-10 h-10 rounded-full font-bold
+                                    {% if rank == 1 %}bg-yellow-500 text-yellow-900
+                                    {% elif rank == 2 %}bg-gray-300 text-gray-800
+                                    {% elif rank == 3 %}bg-orange-400 text-orange-900
+                                    {% else %}bg-gray-600 text-gray-200{% endif %}">
+                                    {{ rank }}
+                                </span>
+                            {% else %}
+                                <span class="text-gray-500">-</span>
+                            {% endif %}
+                            {% endwith %}
+                        </td>
+                        {% endfor %}
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-gray-500 text-center py-8">Még nincs szavazat ebben a kategóriában.</p>
+        {% endif %}
+    </div>
+    {% endfor %}
+    
+    <script>
+        document.getElementById('user-filter').addEventListener('change', function(e) {
+            const selectedUserId = e.target.value;
+            const userColumns = document.querySelectorAll('.user-column');
+            
+            userColumns.forEach(col => {
+                if (selectedUserId === '') {
+                    col.style.display = '';
+                } else {
+                    col.style.display = col.dataset.userId === selectedUserId ? '' : 'none';
+                }
+            });
+        });
+    </script>
+</div>
+{% endblock %}

@@ -1,0 +1,65 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="max-w-6xl mx-auto">
+    <div class="bg-gray-800 p-8 rounded-lg shadow-xl border border-gray-700 mb-8">
+        <div class="flex justify-between items-center mb-6">
+            <h1 class="text-3xl font-bold text-white">Esemény Adminisztráció: {{ event.name }}</h1>
+            <a href="{% url 'event_detail' event.id %}" class="bg-gray-700 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded transition duration-300">
+                Vissza az eseményhez
+            </a>
+        </div>
+        
+        <div class="mb-8">
+            <h2 class="text-2xl font-bold text-white mb-4">Felhasználók és Jogosultságok</h2>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-gray-300">
+                    <thead class="bg-gray-700 text-gray-100 uppercase text-sm">
+                        <tr>
+                            <th class="py-3 px-4">Felhasználó</th>
+                            <th class="py-3 px-4">Teljes Név</th>
+                            <th class="py-3 px-4">Email</th>
+                            <th class="py-3 px-4">Jogosultságok</th>
+                            <th class="py-3 px-4 text-right">Műveletek</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-700">
+                        {% for role in user_roles %}
+                        <tr class="hover:bg-gray-750 transition duration-150">
+                            <td class="py-3 px-4 font-medium">{{ role.user.username }}</td>
+                            <td class="py-3 px-4">{{ role.user.get_full_name|default:role.user.first_name }}</td>
+                            <td class="py-3 px-4">{{ role.user.email }}</td>
+                            <td class="py-3 px-4">
+                                <div class="flex flex-wrap gap-2">
+                                    {% if role.is_admin %}
+                                        <span class="px-2 py-0.5 text-xs bg-red-900 text-red-200 rounded-full">Admin</span>
+                                    {% endif %}
+                                    {% if role.is_zsuri %}
+                                        <span class="px-2 py-0.5 text-xs bg-blue-900 text-blue-200 rounded-full">Zsűri</span>
+                                    {% endif %}
+                                    {% if role.is_dok %}
+                                        <span class="px-2 py-0.5 text-xs bg-yellow-900 text-yellow-200 rounded-full">DÖK</span>
+                                    {% endif %}
+                                    {% if role.is_domst %}
+                                        <span class="px-2 py-0.5 text-xs bg-purple-900 text-purple-200 rounded-full">DÖMST</span>
+                                    {% endif %}
+                                </div>
+                            </td>
+                            <td class="py-3 px-4 text-right">
+                                <form method="POST" class="inline-block" onsubmit="return confirm('Biztosan új jelszót generálsz és elküldöd emailben a felhasználónak?');">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="action" value="send_credentials">
+                                    <input type="hidden" name="user_id" value="{{ role.user.id }}">
+                                    <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-1 px-3 rounded text-sm transition duration-300">
+                                        Jelszó Küldése
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

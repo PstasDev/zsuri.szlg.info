@@ -1,0 +1,265 @@
+{% extends 'base.html' %}
+{% load vote_extras %}
+{% block content %}
+<div class="max-w-md mx-auto h-[calc(100vh-8rem)] flex flex-col">
+    <!-- Header -->
+    <div class="flex justify-between items-center mb-4 flex-shrink-0 px-2">
+        <div>
+            <h1 class="text-xl font-bold text-blue-400">{{ category.name }}</h1>
+            <p class="text-gray-400 text-xs">{{ event.name }}</p>
+        </div>
+        <a href="{% url 'event_detail' event.id %}" class="text-gray-400 hover:text-white transition duration-300 text-sm">
+            &larr; Vissza
+        </a>
+    </div>
+
+    {% if is_finalized %}
+        <div class="bg-green-900 border border-green-700 text-green-200 px-4 py-3 rounded relative mb-4 flex-shrink-0 mx-2" role="alert">
+            <strong class="font-bold">Véglegesítve!</strong>
+            <span class="block">A sorrend rögzítve.</span>
+            
+            <div class="mt-3 pt-3 border-t border-green-700 text-sm">
+                <p class="font-semibold mb-2">ℹ️ Véglegesítés visszavonása:</p>
+                <p class="mb-2">A véglegesített szavazat csak személyes vagy email megkeresés útján vonható vissza az alábbi adminisztrátorok valamelyikénél:</p>
+                
+                {% if event_admins %}
+                <div class="mb-2">
+                    <p class="font-semibold text-green-100">Esemény adminisztrátorok:</p>
+                    <ul class="list-disc list-inside ml-2">
+                        {% for admin_role in event_admins %}
+                        <li>{{ admin_role.user.get_full_name|default:admin_role.user.username }}
+                            {% if admin_role.user.email %}
+                                - <a href="mailto:{{ admin_role.user.email }}" class="underline hover:text-white">{{ admin_role.user.email }}</a>
+                            {% endif %}
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
+                
+                {% if system_admins %}
+                <div>
+                    <p class="font-semibold text-green-100">Rendszer adminisztrátorok:</p>
+                    <ul class="list-disc list-inside ml-2">
+                        {% for admin in system_admins %}
+                        <li>{{ admin.get_full_name|default:admin.username }}
+                            {% if admin.email %}
+                                - <a href="mailto:{{ admin.email }}" class="underline hover:text-white">{{ admin.email }}</a>
+                            {% endif %}
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    {% else %}
+        <div class="bg-blue-900/50 border border-blue-700/50 text-blue-200 px-4 py-2 rounded mb-4 text-sm flex-shrink-0 mx-2">
+            <p>Húzd a kártyákat a kívánt sorrendbe! A legfelső az 1. helyezett.</p>
+        </div>
+    {% endif %}
+
+    <form method="post" id="voteForm" class="flex-grow flex flex-col min-h-0 relative">
+        {% csrf_token %}
+        <input type="hidden" name="order" id="orderInput">
+        <input type="hidden" name="action" id="actionInput" value="finalize">
+
+        <!-- Scrollable List Container -->
+        <div class="flex-grow overflow-y-auto px-2 pb-2 custom-scrollbar relative z-10" id="list-container">
+            <ul id="sortable-list" class="space-y-2 pb-20">
+            {% for participation in participations %}
+                <li class="bg-gray-800 rounded-lg shadow-md border border-gray-700 p-3 flex items-center justify-between group cursor-grab active:cursor-grabbing hover:bg-gray-750 transition-colors select-none" data-id="{{ participation.id }}">
+                    <div class="flex items-center space-x-3 w-full">
+                        <div class="rank-badge w-8 h-8 flex items-center justify-center rounded-full font-bold text-sm shrink-0 bg-gray-700 text-gray-300 transition-colors duration-300">
+                            {{ forloop.counter }}
+                        </div>
+                        <div class="flex-grow min-w-0">
+                            <h3 class="text-base font-bold text-white leading-tight truncate">{{ participation.osztaly }}</h3>
+                            {% if participation.country %}
+                                <div class="text-gray-400 text-xs flex items-center mt-0.5 truncate">
+                                    <span class="mr-1.5 text-lg">{{ participation.country.flag }}</span>
+                                    {{ participation.country.name }}
+                                </div>
+                            {% endif %}
+                        </div>
+                        {% if not is_finalized %}
+                        <div class="text-gray-600 group-hover:text-gray-400 shrink-0">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8h16M4 16h16"></path>
+                            </svg>
+                        </div>
+                        {% endif %}
+                    </div>
+                </li>
+            {% endfor %}
+            </ul>
+        </div>
+        
+        <!-- Fixed Sticky Footer Button -->
+        {% if not is_finalized %}
+        <div class="absolute bottom-0 left-0 right-0 p-4 bg-gray-900 border-t border-gray-800 z-50 shadow-2xl backdrop-blur-sm bg-opacity-90">
+            <div class="flex items-center justify-between">
+                <span id="autoSaveIndicator" class="text-xs text-gray-500"></span>
+                <button type="button" onclick="submitVote('finalize')" class="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg text-sm transition duration-300 shadow-lg flex items-center justify-center">
+                    <span>Véglegesítés</span>
+                </button>
+            </div>
+        </div>
+        {% endif %}
+    </form>
+</div>
+
+<!-- SortableJS -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
+
+<style>
+    .custom-scrollbar::-webkit-scrollbar {
+        width: 4px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+        background: rgba(31, 41, 55, 0.2); 
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+        background: rgba(75, 85, 99, 0.5); 
+        border-radius: 2px;
+    }
+    
+    .sortable-ghost {
+        opacity: 0.4;
+        background: #374151; /* gray-700 */
+        border: 2px dashed #60A5FA; /* blue-400 */
+    }
+    .sortable-drag {
+        opacity: 1;
+        background: #1F2937; /* gray-800 */
+        transform: scale(1.02);
+        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 10px 10px -5px rgba(0, 0, 0, 0.2);
+        border: 1px solid #3B82F6; /* blue-500 */
+        z-index: 100;
+        cursor: grabbing;
+    }
+</style>
+
+<script>
+    let autoSaveTimeout;
+    const autoSaveDelay = 1000; // 1 second delay after drag
+    
+    document.addEventListener('DOMContentLoaded', function() {
+        var el = document.getElementById('sortable-list');
+        var sortable = Sortable.create(el, {
+            animation: 200,
+            ghostClass: 'sortable-ghost',
+            dragClass: 'sortable-drag',
+            delay: 100,
+            delayOnTouchOnly: true,
+            disabled: {{ is_finalized|yesno:"true,false" }},
+            onEnd: function (evt) {
+                updateRanks();
+                // Auto-save after drag
+                scheduleAutoSave();
+            }
+        });
+
+        // Initial setup
+        updateRanks(); 
+    });
+    
+    function scheduleAutoSave() {
+        // Clear existing timeout
+        if (autoSaveTimeout) {
+            clearTimeout(autoSaveTimeout);
+        }
+        
+        // Show saving indicator
+        const indicator = document.getElementById('autoSaveIndicator');
+        if (indicator) {
+            indicator.textContent = 'Mentés...';
+            indicator.className = 'text-xs text-yellow-400';
+        }
+        
+        // Schedule auto-save
+        autoSaveTimeout = setTimeout(() => {
+            autoSave();
+        }, autoSaveDelay);
+    }
+    
+    function autoSave() {
+        updateRanks();
+        const orderValue = document.getElementById('orderInput').value;
+        
+        fetch(window.location.href, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+            },
+            body: new URLSearchParams({
+                'order': orderValue,
+                'action': 'autosave',
+                'csrfmiddlewaretoken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            const indicator = document.getElementById('autoSaveIndicator');
+            if (indicator) {
+                if (data.status === 'success') {
+                    indicator.textContent = 'Automatikusan mentve ✓';
+                    indicator.className = 'text-xs text-green-400';
+                    setTimeout(() => {
+                        indicator.textContent = '';
+                    }, 2000);
+                } else {
+                    indicator.textContent = 'Mentési hiba';
+                    indicator.className = 'text-xs text-red-400';
+                }
+            }
+        })
+        .catch(error => {
+            console.error('Auto-save error:', error);
+            const indicator = document.getElementById('autoSaveIndicator');
+            if (indicator) {
+                indicator.textContent = 'Mentési hiba';
+                indicator.className = 'text-xs text-red-400';
+            }
+        });
+    }
+
+    function updateRanks() {
+        const list = document.getElementById('sortable-list');
+        const items = list.querySelectorAll('li');
+        const order = [];
+        
+        items.forEach((item, index) => {
+            const rankBadge = item.querySelector('.rank-badge');
+            const rank = index + 1;
+            rankBadge.textContent = rank;
+            
+            // Reset classes
+            rankBadge.className = 'rank-badge w-8 h-8 flex items-center justify-center rounded-full font-bold text-sm shrink-0 transition-colors duration-300 mr-3 ';
+            
+            if (rank === 1) rankBadge.classList.add('bg-yellow-500', 'text-yellow-900');
+            else if (rank === 2) rankBadge.classList.add('bg-gray-300', 'text-gray-800');
+            else if (rank === 3) rankBadge.classList.add('bg-orange-400', 'text-orange-900');
+            else rankBadge.classList.add('bg-gray-700', 'text-gray-300');
+
+            order.push(item.getAttribute('data-id'));
+        });
+        
+        document.getElementById('orderInput').value = order.join(',');
+    }
+
+    function submitVote(action) {
+        updateRanks();
+        document.getElementById('actionInput').value = action;
+        
+        if (action === 'finalize') {
+            if (confirm("Biztosan véglegesíted a sorrendet? Ezt követően nem módosíthatod!")) {
+                document.getElementById('voteForm').submit();
+            }
+        } else {
+            document.getElementById('voteForm').submit();
+        }
+    }
+</script>
+{% endblock %}
