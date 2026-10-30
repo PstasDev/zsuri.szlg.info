@@ -31,11 +31,12 @@ class IssueEventPasswordsAdminActionTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(len(response.context['results']), 2)
-        self.assertEqual(len(response.context['results'][0]['password']), 32)
         self.assertEqual(len(mail.outbox), 2)
         outbox = mail.outbox
         self.assertEqual([email.to for email in outbox], [[user.email] for user in users])
         for user, result, email in zip(users, response.context['results'], outbox):
+            self.assertGreaterEqual(len(result['password']), 8)
+            self.assertLessEqual(len(result['password']), 10)
             user.refresh_from_db()
             self.assertTrue(user.check_password(result['password']))
             self.assertEqual(email.alternatives[0][1], 'text/html')

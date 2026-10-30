@@ -78,9 +78,11 @@ class UserAdmin(BaseUserAdmin):
                 results.append(result)
                 continue
 
-            # 24 random bytes provide 192 bits of entropy; URL-safe characters are
-            # also easy to copy from the admin results table.
-            password = secrets.token_urlsafe(24)
+            # Keep generated passwords easy to copy while limiting them to 8–10
+            # characters.
+            alphabet = string.ascii_letters + string.digits
+            password_length = secrets.randbelow(3) + 8
+            password = ''.join(secrets.choice(alphabet) for _ in range(password_length))
 
             try:
                 user.set_password(password)
