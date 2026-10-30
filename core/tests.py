@@ -55,3 +55,24 @@ class IssueEventPasswordsAdminActionTests(TestCase):
         self.assertEqual(response.context['results'][0]['password'], None)
         self.assertIn('nincs email-cím', response.context['results'][0]['status'])
         self.assertEqual(len(mail.outbox), 0)
+
+    def test_admin_creates_user_with_generated_password_when_password_is_blank(self):
+        add_url = reverse('admin:auth_user_add')
+        response = self.client.post(
+            f'{add_url}?_to_field=id&_popup=1&_source_model=events.usereventrole',
+            {
+                'username': 'new-user',
+                'email': 'new-user@example.com',
+                'first_name': 'New User',
+                'password': '',
+                '_popup': '1',
+                '_to_field': 'id',
+                '_save': 'Save',
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        user = User.objects.get(username='new-user')
+        self.assertTrue(user.password)
+        self.assertFalse(user.check_password(''))
+        self.assertEqual(len(mail.outbox), 0)

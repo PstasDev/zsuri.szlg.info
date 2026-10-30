@@ -9,6 +9,7 @@ from django.template.loader import render_to_string
 from django.template.response import TemplateResponse
 from django.utils import timezone
 import secrets
+import string
 
 # Define a custom form for creating users without a password
 class PasswordLessUserCreationForm(forms.ModelForm):
